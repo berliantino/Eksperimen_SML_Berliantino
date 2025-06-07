@@ -58,7 +58,7 @@ jobs:
         "
         
     - name: Upload processed data as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # ✅ Updated to v4
       with:
         name: loan-preprocessed-data
         path: preprocessing/loan_data_preprocessing/
@@ -76,7 +76,7 @@ jobs:
         ls -la preprocessing/loan_data_preprocessing/ >> preprocessing_summary.md
         
     - name: Upload summary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # ✅ Updated to v4
       with:
         name: preprocessing-summary
         path: preprocessing_summary.md
@@ -85,10 +85,10 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add preprocessing/loan_data_preprocessing/
-        git add preprocessing_summary.md
-        git diff --staged --quiet || git commit -m "Auto-update preprocessed data [skip ci]"
-        git push
+        git add preprocessing/loan_data_preprocessing/ || true
+        git add preprocessing_summary.md || true
+        git diff --staged --quiet || git commit -m "Auto-update preprocessed data [skip ci]" || true
+        git push || true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
