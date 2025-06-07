@@ -1,0 +1,96 @@
+name: Automated Data Preprocessing
+
+on:
+  push:
+    branches: [ main, master ]
+    paths: 
+      - 'loan_data_raw/**'
+      - 'preprocessing/**'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  preprocessing:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Commit and push processed data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add preprocessing/loan_data_preprocessing/
+        git diff --staged --quiet || git commit -m "Auto-update preprocessed data [skip ci]"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Create processing summary
+      run: |
+        echo "# Preprocessing Summary" > preprocessing_summary.md
+        echo "- **Date**: $(date)" >> preprocessing_summary.md
+        echo "- **Workflow**: ${{ github.workflow }}" >> preprocessing_summary.md
+        echo "- **Run ID**: ${{ github.run_id }}" >> preprocessing_summary.md
+        echo "- **Commit**: ${{ github.sha }}" >> preprocessing_summary.md
+        echo "" >> preprocessing_summary.md
+        echo "## Files Generated:" >> preprocessing_summary.md
+        ls -la preprocessing/loan_data_preprocessing/ >> preprocessing_summary.md
+        
+    - name: Upload summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: preprocessing-summary
+        path: preprocessing_summary.md Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy scikit-learn matplotlib seaborn joblib
+        
+    - name: Create preprocessing directory
+      run: |
+        mkdir -p preprocessing/loan_data_preprocessing
+        
+    - name: Run preprocessing
+      run: |
+        cd preprocessing
+        python automate_*.py
+        
+    - name: Verify processed data
+      run: |
+        echo "Checking processed data files..."
+        ls -la preprocessing/loan_data_preprocessing/
+        echo "Verifying CSV files..."
+        python -c "
+        import pandas as pd
+        import os
+        
+        data_dir = 'preprocessing/loan_data_preprocessing'
+        files = ['X_train.csv', 'X_test.csv', 'y_train.csv', 'y_test.csv']
+        
+        for file in files:
+            if os.path.exists(os.path.join(data_dir, file)):
+                df = pd.read_csv(os.path.join(data_dir, file))
+                print(f'{file}: {df.shape}')
+            else:
+                print(f'{file}: NOT FOUND')
+        "
+        
+    - name: Upload processed data as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: loan-preprocessed-data
+        path: preprocessing/loan_data_preprocessing/
+        retention-days: 30
+        
+    - name: Notify completion
+      run: |
+        echo "Preprocessing completed successfully!"
+        echo "Processed data files are available in the 'preprocessing/loan_data_preprocessing/' directory."
+        echo "Summary of preprocessing is available in 'preprocessing_summary.md'." 
